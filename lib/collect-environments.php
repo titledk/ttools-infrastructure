@@ -1,101 +1,171 @@
 <?php
+
 /**
- * Collect Environments
- * CLI script
+ * EnvironmentsCollector
  * WORK IN PROGRESS
+ * Collects environment info (ttools/config.yml) from all projects stored in a certain ocation
  *
- * Run like this:
- * php ./ttools/infrastructure/lib/collect-environments.php
- *
- * @copyright September 2015 Anselm Christophersen / Title Web Solutions
+ * @author Anselm Christophersen <ac@anselm.dk>
+ * @date   September 2015
  * @license MIT
  */
+class EnvironmentsCollector {
+
+	/**
+	 * Log to CLI
+	 * @var bool
+	 */
+	private $doLog = false;
+
+	/**
+	 * If subdir mode is set to true we expect sub directories inside of your git-repo directory
+	 * (the place where all your git repos should be stored)
+	 * If not, we expect them all to be stored in one directory
+	 *
+	 * @var bool
+	 */
+	private $subDirMode = true;
+
+	/**
+	 * @var string
+	 */
+	private $repoDir = '';
+
+	/**
+	 * @var string
+	 */
+	private $reposDir = '';
+
+	/**
+	 * @var array
+	 */
+	private $localConf = [];
+
+	/**
+	 * @var array
+	 */
+	private $collectedServers = [];
+
+	/**
+	 * @var array
+	 */
+	private $collectedSites = [];
+
+	/**
+	 * @var array
+	 */
+	private $collectedProjects = [];
 
 
-//are repositories placed in sub directories?
-$subDirs = true;
+	public function __construct() {
 
-$repoDir = dirname(dirname(dirname(dirname(__FILE__)))) . '/';
+		$this->initRepoDir();
+		$this->initReposDir();
 
-require_once $repoDir . 'ttools/infrastructure/thirdparty/php/Spyc.php';
+		$configFile = $this->repoDir . 'ttools/config.yml';
+		$this->localConf = spyc_load_file($configFile);
 
-$reposDir = dirname($repoDir) . '/';
-if ($subDirs) {
-	$reposDir = dirname($reposDir) . '/';
-}
+	}
 
-$configFile = $repoDir . 'ttools/config.yml';
-$conf = spyc_load_file($configFile);
-
-
-$servers = $conf['Environments'];
-$sites = [];
-
-
-function extractEnvironments($dir) {
-	global $sites;
-
-	echo "Extracting environments for $dir ... \n";
-
-	$configFile = $dir . '/ttools/config.yml';
-	if (file_exists($configFile)) {
-		echo "config.yml found \n";
-		$conf = spyc_load_file($configFile);
-		foreach ($conf['Environments'] as $env => $data) {
-
-			if (isset($data['Domain']) && strlen($data['Domain']) > 0) {
-				$domain = $data['Domain'];
-
-				$data['Environment'] = $env;
-				$data['Project'] = $conf['Projectname'];
-
-				$sites[$domain] = $data;
-			}
-
+	private function initRepoDir() {
+		$this->repoDir = dirname(dirname(dirname(dirname(__FILE__)))) . '/';
+		require_once $this->repoDir . 'ttools/infrastructure/thirdparty/php/Spyc.php';
+	}
+	private function initReposDir() {
+		$this->reposDir = dirname($this->repoDir) . '/';
+		if ($this->subDirMode) {
+			$this->reposDir = dirname($this->reposDir) . '/';
 		}
 	}
 
-	echo "\n";
-}
+	/**
+	 * Collecting environments
+	 */
+	public function collect() {
+		//Setting servers
+		$this->collectedServers = $this->localConf['Environments'];
 
+		if ($this->doLog) {
+			echo "\n";
+			echo "Now extracting environments:";
+			echo "\n";
+			echo "\n";
+		}
 
-echo "\n";
-echo "Now extracting environments:";
-echo "\n";
-echo "\n";
+		foreach (new DirectoryIterator($this->reposDir) as $fileInfo) {
+			if($fileInfo->isDir() && !$fileInfo->isDot()) {
+				//echo $fileInfo->getFilename() . ' (' . $fileInfo->getPathname() . ")\n";
 
-
-foreach (new DirectoryIterator($reposDir) as $fileInfo) {
-	if($fileInfo->isDir() && !$fileInfo->isDot()) {
-		//echo $fileInfo->getFilename() . ' (' . $fileInfo->getPathname() . ")\n";
-
-		if ($subDirs) {
-			foreach (new DirectoryIterator($fileInfo->getPathname()) as $fileInfo) {
-				if ($fileInfo->isDir() && !$fileInfo->isDot()) {
-					//echo '  ' . $fileInfo->getFilename() . "\n";
-					extractEnvironments($fileInfo->getPathname());
+				if ($this->subDirMode) {
+					foreach (new DirectoryIterator($fileInfo->getPathname()) as $fileInfo) {
+						if ($fileInfo->isDir() && !$fileInfo->isDot()) {
+							//echo '  ' . $fileInfo->getFilename() . "\n";
+							$this->extractEnvironments($fileInfo->getPathname());
+						}
+					}
+				} else {
+					$this->extractEnvironments($fileInfo->getPathname());
 				}
 			}
-		} else {
-			extractEnvironments($fileInfo->getPathname());
 		}
 	}
+
+
+	private function extractEnvironments($dir) {
+
+		if ($this->doLog) {
+			echo "Extracting environments for $dir ... \n";
+		}
+
+		$configFile = $dir . '/ttools/config.yml';
+		if (file_exists($configFile)) {
+			if ($this->doLog) {
+				echo "config.yml found \n";
+			}
+			$conf = spyc_load_file($configFile);
+			foreach ($conf['Environments'] as $env => $data) {
+
+				if (isset($data['Domain']) && strlen($data['Domain']) > 0) {
+					$domain = $data['Domain'];
+
+					$data['Environment'] = $env;
+					$data['Project'] = $conf['Projectname'];
+
+					$this->collectedSites[$domain] = $data;
+				}
+
+			}
+		}
+		if ($this->doLog) {
+			echo "\n";
+		}
+	}
+
+
+	/**
+	 * @param $bol
+	 */
+	public function setSubDirMode($bol) {
+		$this->subDirMode = $bol;
+	}
+
+	/**
+	 * @param $bol
+	 */
+	public function setDoLog($bol) {
+		$this->doLog = $bol;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getCollectedSites() {
+		return $this->collectedSites;
+	}
+
+
 }
 
 
 
-echo "Servers:";
-echo "\n";
 
-//foreach ($servers as $identifier => $data) {
-//	echo $identifier . "\n";
-//}
-echo "\n";
-
-var_dump($servers);
-
-
-echo "Sites:";
-echo "\n";
-
-var_dump($sites);
