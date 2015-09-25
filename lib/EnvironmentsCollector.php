@@ -80,6 +80,7 @@ class EnvironmentsCollector {
 
 	/**
 	 * Collecting environments
+	 * Looping through all environments to extract the info
 	 */
 	public function collect() {
 		//Setting servers
@@ -110,7 +111,10 @@ class EnvironmentsCollector {
 		}
 	}
 
-
+	/**
+	 * Extracting the ttools/config.yml file for a specific directory
+	 * @param $dir
+	 */
 	private function extractEnvironments($dir) {
 
 		if ($this->doLog) {
@@ -123,6 +127,7 @@ class EnvironmentsCollector {
 				echo "config.yml found \n";
 			}
 			$conf = spyc_load_file($configFile);
+			$this->collectedProjects[] = $conf;
 			foreach ($conf['Environments'] as $env => $data) {
 
 				if (isset($data['Domain']) && strlen($data['Domain']) > 0) {
@@ -161,6 +166,20 @@ class EnvironmentsCollector {
 	 */
 	public function getCollectedSites() {
 		return $this->collectedSites;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getCollectedServers() {
+		return $this->collectedServers;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getCollectedProjects() {
+		return $this->collectedProjects;
 	}
 
 
