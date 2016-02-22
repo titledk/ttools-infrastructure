@@ -3,7 +3,7 @@
 /**
  * EnvironmentsCollector
  * WORK IN PROGRESS
- * Collects environment info (ttools/config.yml) from all projects stored in a certain ocation
+ * Collects environment info (ttools/config.yml) from all projects stored in a certain location
  *
  * @author Anselm Christophersen <ac@anselm.dk>
  * @date   September 2015
@@ -137,6 +137,7 @@ class EnvironmentsCollector
             $this->collectedProjects[] = $conf;
             foreach ($conf['Environments'] as $env => $data) {
 
+                //if a domain is defined, we add the environment to "sites"
                 if (isset($data['Domain']) && strlen($data['Domain']) > 0) {
                     $domain = $data['Domain'];
 
@@ -170,6 +171,7 @@ class EnvironmentsCollector
     }
 
     /**
+     * All collected sites
      * @return array
      */
     public function getCollectedSites()
@@ -178,6 +180,7 @@ class EnvironmentsCollector
     }
 
     /**
+     * The servers as defined in the infrastructure project
      * @return array
      */
     public function getCollectedServers()
@@ -186,6 +189,7 @@ class EnvironmentsCollector
     }
 
     /**
+     * All projects with all metadata
      * @return array
      */
     public function getCollectedProjects()
